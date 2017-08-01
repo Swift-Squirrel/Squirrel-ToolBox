@@ -10,6 +10,7 @@ import Foundation
 import SwiftCLI
 import PathKit
 import Signals
+import Progress
 
 struct Pids {
     static let stringPidsDir = "/usr/local/squirrel"
@@ -29,7 +30,7 @@ class ToolBox {
     init() {
         CLI.setup(name: "Squirrel", version: "0.0.1", description: "Toolbox for squirrel framework")
 //        let cmd =
-        CLI.register(commands: [ServeCommand(), StopCommand()])
+        CLI.register(commands: [ServeCommand(), StopCommand(), Migration()])
 //        CLI.register(command: cmd)
         if !pidsDir.exists {
             try? pidsDir.mkpath() // TODO
@@ -44,6 +45,67 @@ class ToolBox {
 //        let a = CLI.debugGo(with: "serve")
         print(a)
     }
+}
+
+class Migration: Command {
+    let name = "migrate"
+    let shortDescription = "Create migrations"
+    let current = Path()
+    let tablesDir: Path
+    let destRoot: Path
+    let sourcesDir: Path
+
+
+
+    init() {
+        tablesDir = Path(components: [current.absolute().description, "Sources/App/Models/Database/Tables"])
+        destRoot = Path(components: [current.absolute().description, ".squirrel", "Migration"])
+        sourcesDir = Path(components: [destRoot.absolute().description, "Sources"])
+    }
+
+    func execute() throws {
+        print("migrate")
+               guard tablesDir.exists else {
+            return
+        }
+        var progress = ProgressBar(count: 4)
+        progress.next()
+        let tables = tablesDir.glob("*.swift")
+        copyTables(tables: tables)
+        progress.next()
+        let main = Path(components: [sourcesDir.absolute().description, "main.swift"])
+        try? main.write("let users = User(id: 3, name: \"Tom\")\nprint(users.id)\nprint(users.name)\n")
+        let package = Path(components: [destRoot.absolute().description, "Package.swift"])
+        try? package.write("// swift-tools-version:3.1\nimport PackageDescription\nlet package = Package(\n\tname: \"Migration\"\n)")
+        progress.next()
+        swiftBuild(root: destRoot)
+        progress.next()
+        swiftRun(root: destRoot)
+        progress.next()
+    }
+
+    private func copyTables(tables: [Path]) {
+        for table in tables {
+            let dest = Path(components: [sourcesDir.absolute().description, table.lastComponent])
+            if dest.exists {
+                try! dest.delete()
+            }
+            try! table.copy(dest) // TODO
+        }
+    }
+}
+
+func swiftRun(root path: Path) {
+    let path = Path(components: [path.absolute().description, ".build/release"])
+    let task = createTask(launchPath: path, executable: "Migration", detached: false)
+    task.standardOutput = FileHandle.nullDevice
+    task.standardError = FileHandle.nullDevice
+    task.launch()
+    task.waitUntilExit()
+}
+
+func swiftBuild(root path: Path) {
+    let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--chdir", path.absolute().description, "-c", "release"])
 }
 
 class StopCommand: Command {

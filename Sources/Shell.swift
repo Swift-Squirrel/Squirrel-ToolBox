@@ -25,7 +25,7 @@ func shell(launchPath: Path, executable: String, arguments: [String] = []) -> Sh
     task.standardOutput = pipe
     task.standardError = pipe
     task.launch()
-    print(task.processIdentifier)
+//    print(task.processIdentifier)
     task.waitUntilExit()
     let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     return ShellResult(output: output, status: task.terminationStatus)
