@@ -58,9 +58,9 @@ class Migration: Command {
 
 
     init() {
-        tablesDir = Path(components: [current.absolute().description, "Sources/App/Models/Database/Tables"])
+        tablesDir = Path(components: [current.absolute().description, "Sources/Squirrel/Models/Database/Tables"])
         destRoot = Path(components: [current.absolute().description, ".squirrel", "Migration"])
-        sourcesDir = Path(components: [destRoot.absolute().description, "Sources"])
+        sourcesDir = Path(components: [destRoot.absolute().description, "Sources/Migration"])
     }
 
     func execute() throws {
@@ -73,10 +73,28 @@ class Migration: Command {
         let tables = tablesDir.glob("*.swift")
         copyTables(tables: tables)
         progress.next()
+        let tablesString = tables.flatMap({ $0.lastComponentWithoutExtension + "()" }).joined(separator: ", ")
         let main = Path(components: [sourcesDir.absolute().description, "main.swift"])
-        try? main.write("let users = User(id: 3, name: \"Tom\")\nprint(users.id)\nprint(users.name)\n")
+        var mainString = "import SquirrelMigrationManager\n\n"
+        mainString += "let manager = MigrationManager(models: [\(tablesString)])\n\n"
+        mainString += "manager.migrate()\n"
+        try? main.write(mainString)
         let package = Path(components: [destRoot.absolute().description, "Package.swift"])
-        try? package.write("// swift-tools-version:3.1\nimport PackageDescription\nlet package = Package(\n\tname: \"Migration\"\n)")
+        var packageGenerator = PackageGenerator(name: "Migration")
+        packageGenerator.dependencies.append(
+            PackageGenerator.Dependency(
+                url: "https://github.com/LeoNavel/MySqlSwiftNative.git",
+                major: "1",
+                minor: "3" 
+            )
+        )
+        packageGenerator.dependencies.append(
+            PackageGenerator.Dependency(
+                url: "https://github.com/LeoNavel/Squirrel-MigrationManager.git",
+                major: "0"
+            )
+        )
+        try? package.write(packageGenerator.generate())
         progress.next()
         swiftBuild(root: destRoot)
         progress.next()
@@ -84,7 +102,7 @@ class Migration: Command {
         progress.next()
     }
 
-    private func copyTables(tables: [Path]) {
+    private func copyTables(tables: [Path]) { 
         for table in tables {
             let dest = Path(components: [sourcesDir.absolute().description, table.lastComponent])
             if dest.exists {
