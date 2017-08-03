@@ -10,11 +10,24 @@ import Foundation
 import PathKit
 
 struct ShellResult: CustomStringConvertible {
-    let output: String?
+    let output: String
     let status: Int32
     var description: String {
         return String(describing: output) + " " + String(describing: status)
     }
+}
+
+func shellWithOutput(launchPath: Path, executable: String, arguments: [String] = []) -> ShellResult {
+    let task = Process()
+    task.launchPath = launchPath.absolute().description
+    task.arguments = [executable] + arguments
+    let pipe = Pipe()
+    task.standardOutput = pipe
+    task.standardError = pipe
+    task.launch()
+    task.waitUntilExit()
+    let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    return ShellResult(output: output, status: task.terminationStatus)
 }
 
 func shell(launchPath: Path, executable: String, arguments: [String] = []) -> ShellResult {

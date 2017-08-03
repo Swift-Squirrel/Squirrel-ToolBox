@@ -113,18 +113,6 @@ class Migration: Command {
     }
 }
 
-func swiftRun(root path: Path) {
-    let path = Path(components: [path.absolute().description, ".build/release"])
-    let task = createTask(launchPath: path, executable: "Migration", detached: false)
-    task.standardOutput = FileHandle.nullDevice
-    task.standardError = FileHandle.nullDevice
-    task.launch()
-    task.waitUntilExit()
-}
-
-func swiftBuild(root path: Path, configuration: String = "debug") {
-    let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--chdir", path.absolute().description, "-c", configuration])
-}
 
 class StopCommand: Command {
     let name = "stop"
@@ -141,63 +129,9 @@ class StopCommand: Command {
         } else {
             try! removePID()
         }
-
+        
     }
 }
-
-func getExecutableName() -> String? {
-    let debugDir = Path(components: [Path().absolute().description,".build", "debug"])
-    if debugDir.exists {
-        let files = debugDir.glob("*").filter({ $0.lastComponent == $0.lastComponentWithoutExtension && $0.isFile})
-        if files.count == 1 {
-            return files.first!.lastComponent
-        }
-    }
-    let releaseDir = Path(components: [Path().absolute().description,".build", "release"])
-    if releaseDir.exists {
-        let files = releaseDir.glob("*").filter({ $0.lastComponent == $0.lastComponentWithoutExtension})
-        if files.count == 1 {
-            return files.first!.lastComponent
-        }
-    }
-    return nil
-}
-
-func removePID(pid: String? = nil) throws {
-    guard Pids.pids.exists else {
-        return
-    }
-    let content: String = try! Pids.pids.read()
-    guard content != "" else {
-        return
-    }
-
-    var pids = content.components(separatedBy: "\n").filter({ $0 != "" })
-    guard pids.count > 0 else {
-        return
-    }
-    var stoppingPID = pids.first!
-    if pid != nil {
-        stoppingPID = pid!
-    } else {
-        guard pids.count == 1 else {
-            return
-        }
-    }
-
-    guard let index = pids.index(of: stoppingPID) else {
-        return
-    }
-    pids.remove(at: index)
-    let _ = shell(launchPath: "/usr/bin/env", executable: "kill", arguments: ["-9", stoppingPID])
-    var newContent = pids.joined(separator: "\n")
-    if newContent != "" {
-        newContent += "\n"
-    }
-    try! Pids.pids.write(newContent)
-}
-
-
 
 class ServeCommand: Command {
     let name = "serve"
@@ -217,7 +151,7 @@ class ServeCommand: Command {
         let path = Path(components: [Path().absolute().description, ".build/" + conf])
         guard let exe = getExecutableName() else {
             print("error")
-            return
+            throw CLIError.error("Error in parsing Package.swift")
         }
         let packagePath = Path(components: [Path().absolute().description, "Package.swift"])
         if packagePath.exists && packagePath.isFile {
@@ -271,9 +205,3 @@ class ServeCommand: Command {
         }
     }
 }
-
-//extension OptionalParameter: Option {
-//    public var names: [String] {
-//        return self.
-//    }
-//}
