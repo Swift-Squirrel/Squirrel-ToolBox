@@ -21,14 +21,13 @@ func shell(launchPath: Path, executable: String, arguments: [String] = []) -> Sh
     let task = Process()
     task.launchPath = launchPath.absolute().description
     task.arguments = [executable] + arguments
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = pipe
+    task.standardOutput = FileHandle.standardOutput
+    task.standardError = FileHandle.standardError
     task.launch()
 //    print(task.processIdentifier)
     task.waitUntilExit()
-    let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    return ShellResult(output: output, status: task.terminationStatus)
+//    let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    return ShellResult(output: "", status: task.terminationStatus) // TODO
 }
 
 func createTask(launchPath: Path, executable: String, arguments: [String] = [], detached: Bool) -> Process {

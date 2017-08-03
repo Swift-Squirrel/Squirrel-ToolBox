@@ -96,7 +96,7 @@ class Migration: Command {
         )
         try? package.write(packageGenerator.generate())
         progress.next()
-        swiftBuild(root: destRoot)
+        swiftBuild(root: destRoot, configuration: "release")
         progress.next()
         swiftRun(root: destRoot)
         progress.next()
@@ -122,8 +122,8 @@ func swiftRun(root path: Path) {
     task.waitUntilExit()
 }
 
-func swiftBuild(root path: Path) {
-    let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--chdir", path.absolute().description, "-c", "release"])
+func swiftBuild(root path: Path, configuration: String = "debug") {
+    let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--chdir", path.absolute().description, "-c", configuration])
 }
 
 class StopCommand: Command {
@@ -133,6 +133,8 @@ class StopCommand: Command {
 
     let stopingPid = OptionalParameter()
 
+
+
     func execute() throws {
         if let stopingPid = stopingPid.value {
             try! removePID(pid: stopingPid)
@@ -141,6 +143,24 @@ class StopCommand: Command {
         }
 
     }
+}
+
+func getExecutableName() -> String? {
+    let debugDir = Path(components: [Path().absolute().description,".build", "debug"])
+    if debugDir.exists {
+        let files = debugDir.glob("*").filter({ $0.lastComponent == $0.lastComponentWithoutExtension && $0.isFile})
+        if files.count == 1 {
+            return files.first!.lastComponent
+        }
+    }
+    let releaseDir = Path(components: [Path().absolute().description,".build", "release"])
+    if releaseDir.exists {
+        let files = releaseDir.glob("*").filter({ $0.lastComponent == $0.lastComponentWithoutExtension})
+        if files.count == 1 {
+            return files.first!.lastComponent
+        }
+    }
+    return nil
 }
 
 func removePID(pid: String? = nil) throws {
@@ -177,58 +197,83 @@ func removePID(pid: String? = nil) throws {
     try! Pids.pids.write(newContent)
 }
 
+
+
 class ServeCommand: Command {
     let name = "serve"
 
     let shortDescription = "Run server"
 
-    let detach = Flag("-d", "--detach", usage: "Run in background")
+    private let detach = Flag("-d", "--detach", usage: "Run in background")
+    private let build = Flag("-b", "--build", usage: "Build project before run")
+    private let configuration = Key<String>("-c", "--configuration", usage: "Values: debug|release (default: debug)")
+    private let configurationValues = ["debug", "release"]
 
     func execute() throws {
-        let path = Path(components: [Path().absolute().description, ".build/debug"])
-        let exe = "Squirrel"
-        let fullPath = Path(components: [path.absolute().description, exe])
-        if fullPath.exists && fullPath.isFile {
+        let conf = configuration.value ?? configurationValues.first!
+        guard configurationValues.contains(conf) else {
+            throw CLIError.error("--configuration expects \(configurationValues.joined(separator: "|")) but \(conf) given.")
+        }
+        let path = Path(components: [Path().absolute().description, ".build/" + conf])
+        guard let exe = getExecutableName() else {
+            print("error")
+            return
+        }
+        let packagePath = Path(components: [Path().absolute().description, "Package.swift"])
+        if packagePath.exists && packagePath.isFile {
+            if build.value {
+                swiftBuild(root: Path().absolute(), configuration: conf)
+            }
             let task = createTask(launchPath: path, executable: exe, detached: detach.value)
             task.launch()
             Pids.tasks.append(task)
             try! Pids.pids.append(String(describing: task.processIdentifier) + "\n") // TODO
             if !detach.value {
-                Signals.trap(signals: [.int, .abrt, .kill, .term, .quit], action: {
-                    _ in
-                    for task in Pids.tasks {
-                        task.terminate()
-                        let stoppingPID = String(describing: task.processIdentifier)
-                        guard Pids.pids.exists else {
-                            return
-                        }
-                        let content: String = try! Pids.pids.read()
-                        guard content != "" else {
-                            return
-                        }
-
-                        var pids = content.components(separatedBy: "\n").filter({ $0 != "" })
-                        guard pids.count > 0 else {
-                            return
-                        }
-
-                        guard let index = pids.index(of: stoppingPID) else {
-                            return
-                        }
-                        pids.remove(at: index)
-                        var newContent = pids.joined(separator: "\n")
-                        if newContent != "" {
-                            newContent += "\n"
-                        }
-                        try! Pids.pids.write(newContent)
-
-                        try! removePID(pid: String(describing: task.processIdentifier))
-                    }
-                })
+                signalTrap()
                 task.waitUntilExit()
             }
         } else {
             print("Error! You are not in roject root directory")
         }
     }
+
+    private func signalTrap() {
+        Signals.trap(signals: [.int, .abrt, .kill, .term, .quit]) {
+            _ in
+            for task in Pids.tasks {
+                task.terminate()
+                let stoppingPID = String(describing: task.processIdentifier)
+                guard Pids.pids.exists else {
+                    return
+                }
+                let content: String = try! Pids.pids.read()
+                guard content != "" else {
+                    return
+                }
+
+                var pids = content.components(separatedBy: "\n").filter({ $0 != "" })
+                guard pids.count > 0 else {
+                    return
+                }
+
+                guard let index = pids.index(of: stoppingPID) else {
+                    return
+                }
+                pids.remove(at: index)
+                var newContent = pids.joined(separator: "\n")
+                if newContent != "" {
+                    newContent += "\n"
+                }
+                try! Pids.pids.write(newContent)
+
+                try! removePID(pid: String(describing: task.processIdentifier))
+            }
+        }
+    }
 }
+
+//extension OptionalParameter: Option {
+//    public var names: [String] {
+//        return self.
+//    }
+//}
