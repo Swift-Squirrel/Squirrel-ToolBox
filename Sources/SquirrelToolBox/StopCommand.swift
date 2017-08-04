@@ -15,8 +15,6 @@ class StopCommand: Command {
 
     let stopingPid = OptionalParameter()
 
-
-
     func execute() throws {
         if let stopingPid = stopingPid.value {
             try! removePID(pid: stopingPid)

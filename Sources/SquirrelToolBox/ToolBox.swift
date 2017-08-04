@@ -27,7 +27,12 @@ class ToolBox {
 
     init() {
         CLI.setup(name: "Squirrel", version: "0.0.1", description: "Toolbox for squirrel framework")
-        CLI.register(commands: [ServeCommand(), StopCommand(), MigrationCommand()])
+        CLI.register(commands: [
+            ServeCommand(),
+            StopCommand(),
+            CreateCommand(),
+            MigrationCommand()
+            ])
         if !pidsDir.exists {
             try? pidsDir.mkpath() // TODO
         }
