@@ -9,7 +9,7 @@ public class SourceGenerator {
     public var content = [SourcePartProtocol]()
 
     public var generate: String {
-        var res = imports.joined(separator: "\n")
+        var res = imports.flatMap( { "import " + $0 }).joined(separator: "\n")
         res += "\n"
         content.forEach { (cont) in
             res += "\n"
@@ -28,15 +28,17 @@ public struct SourceStruct: SourcePartProtocol {
         if protocols.count > 0 {
             res += ": " + protocols.joined(separator: ", ")
         }
-        res += " {\n\n"
-        variables.forEach { variable in
-            res += variable.intendedDescription(intends: intends + "\t")
-        }
-
+        res += " {\n"
         inits.forEach { (ini) in
             res += "\n"
             res += ini.intendedDescription(intends: intends + "\t")
         }
+        res += "\n"
+        variables.forEach { variable in
+            res += variable.intendedDescription(intends: intends + "\t")
+        }
+
+
 
         res += intends + "}\n"
         return res

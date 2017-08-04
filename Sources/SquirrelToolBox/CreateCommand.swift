@@ -14,10 +14,12 @@ class CreateCommand: Command {
     let name = "create"
     let shortDescription = "Create model, controller or another file"
 
-    let type = Key<String>("-t", "--type", usage: "Values: [model]")
-    let typeValues = ["model"]
+    let type = Key<String>("-t", "--type", usage: "Values: [model|view]")
+    let typeValues = ["model", "view"]
 
     let fileName = Parameter()
+
+    let currentDir = Path().absolute()
 
     var exeName = ""
 
@@ -41,23 +43,46 @@ class CreateCommand: Command {
         switch type {
         case "model":
             createModel(name: fileName)
+        case "view":
+            createView(name: fileName)
         default:
             throw CLIError.error("Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))], got \(type)")
         }
     }
 
-    private func createModel(name: String) {
-        let modelDirPath = Path(components: [Path().absolute().description, "Sources", exeName, "Models", "Database", "Tables"])
-        if !modelDirPath.exists {
-            try! modelDirPath.mkpath()
+    private func mkdirs(path: Path) -> Bool {
+        let dir = path.parent().absolute()
+        if !dir.exists {
+            try! dir.mkpath()
         }
 
-        let modelPath = Path(components: [modelDirPath.absolute().description, name.capitalized + ".swift"])
-        if modelPath.exists {
+        if path.exists {
             guard Input.awaitYesNoInput(message: "File alraady exists, do you want to override it?") else {
-                return
+                return false
             }
         }
+        return true
+    }
+
+    private func createView(name: String) {
+
+        let file = Path(components: [currentDir.description, "Storage", "Framework", "Views", "Views", name.capitalized + ".nut"])
+        guard mkdirs(path: file) else {
+            return
+        }
+
+        let string = "<!-- \(name).html -->\n\n<h1>\(name)</h1>\n"
+
+        try! file.write(string)
+    }
+
+    private func createModel(name: String) {
+        let modelPath = Path(components: [currentDir.description, "Sources", exeName, "Models", "Database", "Tables", name.capitalized + ".swift"])
+
+        guard mkdirs(path: modelPath) else {
+            return
+        }
+
         let generator = SourceGenerator()
         generator.imports += ["Foundation", "SquirrelConnector"]
         var modelStruct = SourceStruct(name: modelPath.lastComponentWithoutExtension, protocols: ["ModelProtocol"])
@@ -67,7 +92,6 @@ class CreateCommand: Command {
             SourceVariable(name: "modified", value: "Date()")
         ]
         generator.content.append(modelStruct)
-        print(generator.generate)
         try! modelPath.write(generator.generate)
     }
 }
