@@ -14,8 +14,8 @@ class CreateCommand: Command {
     let name = "create"
     let shortDescription = "Create model, controller or another file"
 
-    let type = Key<String>("-t", "--type", usage: "Values: [model|view]")
-    let typeValues = ["model", "view"]
+    let type = Key<String>("-t", "--type", usage: "Values: [model|seeder|view]")
+    let typeValues = ["model", "view", "seeder"]
 
     let fileName = Parameter()
 
@@ -45,6 +45,8 @@ class CreateCommand: Command {
             createModel(name: fileName)
         case "view":
             createView(name: fileName)
+        case "seeder":
+            createSeeder(name: fileName)
         default:
             throw CLIError.error("Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))], got \(type)")
         }
@@ -66,14 +68,38 @@ class CreateCommand: Command {
 
     private func createView(name: String) {
 
-        let file = Path(components: [currentDir.description, "Storage", "Framework", "Views", "Views", name.capitalized + ".nut"])
+        let file = Path(components: [currentDir.description, "Resources", "Views", "Views", name.capitalized + ".nut"])
         guard mkdirs(path: file) else {
             return
         }
 
-        let string = "<!-- \(name).html -->\n\n<h1>\(name)</h1>\n"
+        let string = "<!-- \(name).html -->\n\n\\title(\"\(name)\")\n\n<h1>\(name)</h1>\n"
 
         try! file.write(string)
+    }
+
+    private func createSeeder(name: String) {
+        let seederPath = Path(components: [currentDir.description, "Sources", exeName, "Models", "Database", "Seeders", name.capitalized + "Seeder" + ".swift"])
+
+        guard mkdirs(path: seederPath) else {
+            return
+        }
+
+        let generator = SourceGenerator()
+        generator.imports += ["SquirrelConnector"]
+        var modelStruct = SourceStruct(name: seederPath.lastComponentWithoutExtension, protocols: ["SeederProtocol"])
+
+        let initMethod = SourceInit(variables: [])
+
+        modelStruct.inits.append(initMethod)
+
+        var function = SourceFunction(name: "setUp", throws: true, mutating: true)
+        function.body.append("models.append(\(name)())")
+        modelStruct.functions.append(function)
+        modelStruct.variables.append(SourceVariable(name: "models", type: "[ModelProtocol]", value: "[]"))
+
+        generator.content.append(modelStruct)
+        try! seederPath.write(generator.generate)
     }
 
     private func createModel(name: String) {
@@ -88,6 +114,7 @@ class CreateCommand: Command {
         var modelStruct = SourceStruct(name: modelPath.lastComponentWithoutExtension, protocols: ["ModelProtocol"])
         modelStruct.inits.append(SourceInit(variables: []))
         modelStruct.variables += [
+            SourceVariable(name: "id", type: "UInt", value: "0"),
             SourceVariable(name: "created", value: "Date()"),
             SourceVariable(name: "modified", value: "Date()")
         ]

@@ -19,4 +19,7 @@ public protocol SourceInitProtocol: SourcePartProtocol {
 
 }
 
+public protocol SourceFunctionProtocol: SourcePartProtocol {
+    
+}
 

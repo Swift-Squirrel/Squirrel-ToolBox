@@ -38,7 +38,12 @@ public struct SourceStruct: SourcePartProtocol {
             res += variable.intendedDescription(intends: intends + "\t")
         }
 
-
+        if functions.count > 0 {
+            res += "\n"
+            functions.forEach({ (function) in
+                res += function.intendedDescription(intends: intends + "\t")
+            })
+        }
 
         res += intends + "}\n"
         return res
@@ -48,10 +53,39 @@ public struct SourceStruct: SourcePartProtocol {
     public var protocols = [String]()
     public var variables = [SourceVariableProtocol]()
     public var inits = [SourceInitProtocol]()
+    public var functions = [SourceFunctionProtocol]()
 
     public init(name: String, protocols: [String] = [String()]) {
         self.name = name
         self.protocols = protocols
+    }
+}
+
+public struct SourceFunction: SourceFunctionProtocol {
+    private let name: String
+    public var body = [String]()
+    private let isThrowing: Bool
+    private let isMutating: Bool
+
+    public init(name: String, throws isThrowing: Bool = false, mutating isMutating: Bool = false) {
+        self.name = name
+        self.isThrowing = isThrowing
+        self.isMutating = isMutating
+    }
+
+    public func intendedDescription(intends: String) -> String {
+        var res = intends
+        if isMutating {
+            res += "mutating "
+        }
+        res += "func \(name)() "
+        if isThrowing {
+            res += "throws "
+        }
+        res += "{\n"
+        res += intends + "\t" + body.joined(separator: "\n\(intends)\t") + "\n"
+        res += intends + "}\n"
+        return res
     }
 }
 
@@ -60,10 +94,17 @@ public struct SourceInit: SourceInitProtocol {
         var res = intends + "init("
         res += variables.map( { $0.name + ": " + $0.type } ).joined(separator: ", ")
         res += ") {\n"
-        res += variables.map( { intends + "\tself." + $0.name + " = " + $0.name } ).joined(separator: "\n")
+        if variables.count > 0 {
+            res += variables.map( { intends + "\tself." + $0.name + " = " + $0.name } ).joined(separator: "\n") + "\n"
+        }
+        if body.count > 0 {
+            res += "\n" + intends + "\t" + body.joined(separator: "\n\(intends)\t") + "\n"
+        }
         res += intends + "}\n"
         return res
     }
+
+    public var body = [String]()
 
     private let variables: [(name: String, type: String)]
 

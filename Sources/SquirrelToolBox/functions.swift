@@ -9,6 +9,7 @@
 import Foundation
 import PathKit
 import SwiftCLI
+import Yaml
 
 func swiftRun(root path: Path) {
     let path = Path(components: [path.absolute().description, ".build/release"])
@@ -25,6 +26,54 @@ func swiftRun(root path: Path) {
 
 func swiftBuild(root path: Path, configuration: String = "debug") {
     let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--chdir", path.absolute().description, "-c", configuration])
+}
+
+func stringRepresentation(of: Any) -> String {
+    switch of {
+    case let int as Int:
+        return String(int)
+    case let string as String:
+        return  "\"" + string + "\""
+    default:
+        return String(describing: of)
+    }
+}
+
+func getConfig(path: Path) -> Yaml? {
+    guard let content: String = try? path.read() else {
+        return nil
+    }
+    guard let yaml = try? Yaml.load(content) else {
+        return nil
+    }
+    return yaml
+}
+
+func getDB(from path: Path) throws -> (db: DBTypes, data: [String: Any]) {
+    guard let yaml = getConfig(path: path) else {
+        throw CLIError.error("Error in \(path.string)")
+    }
+
+    guard let (databaseYaml, valuesYaml) = yaml["database"].dictionary?.first else {
+        throw CLIError.error("Missing database informations in \(path.string)")
+    }
+    guard let databaseName = databaseYaml.string else {
+        throw CLIError.error("Can not get database name from \(path.string)")
+    }
+    let dbType: DBTypes
+    switch databaseName.lowercased() {
+    case "mysql":
+        dbType = .mysql
+    default:
+        throw CLIError.error("Unknown database '\(databaseName)' in \(path.string)")
+    }
+
+    guard let valuesDic = valuesYaml.dictionary else {
+        throw CLIError.error("Can not get database name from \(path.string)")
+    }
+
+    let values = dbType.parse(yaml: valuesDic)
+    return (db: dbType, data: values)
 }
 
 func getExecutableName(path: Path = Path()) -> String? {

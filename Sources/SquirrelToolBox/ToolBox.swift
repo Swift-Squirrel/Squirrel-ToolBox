@@ -31,7 +31,8 @@ class ToolBox {
             ServeCommand(),
             StopCommand(),
             CreateCommand(),
-            MigrationCommand()
+            MigrationCommand(),
+            SeedCommand()
             ])
         if !pidsDir.exists {
             try? pidsDir.mkpath() // TODO
