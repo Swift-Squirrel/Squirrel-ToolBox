@@ -32,11 +32,11 @@ class MigrationCommand: Command {
         tablesDir = current + ("Sources/" + exeName + "/Models/Database/Tables")
         destRoot = current + ".squirrel/Migration"
         sourcesDir = destRoot + "Sources/Migration"
-        let config = current + "squirrel.yaml"
+        let config = current + ".squirrel.yaml"
 
         progress.next()
 
-        let (db, data) = try getDB(from: config)
+        let dbData = try getDB(from: config)
 
         progress.next()
         guard tablesDir.exists else {
@@ -49,15 +49,11 @@ class MigrationCommand: Command {
         let tables = tablesDir.glob("*.swift")
         copyTables(tables: tables)
         progress.next()
-        let tablesString = tables.flatMap({ $0.lastComponentWithoutExtension + "()" }).joined(separator: ", ")
+        let tablesString = tables.flatMap({ $0.lastComponentWithoutExtension + ".self" }).joined(separator: ", ")
         let main = Path(components: [sourcesDir.absolute().description, "main.swift"])
         var mainString = "import SquirrelMigrationManager\nimport SquirrelConnector\n"
-        mainString += db.imp + "\n\n"
 
-        let dbDataString = data.map( { "    \"" + $0.key + "\": " + stringRepresentation(of: $0.value) } ).joined(separator: ",\n    ")
-        mainString += "let dbData: [String: Any] = [\n    " + dbDataString + "\n]\n\n"
-        mainString += "let connector = try \(db.connectorName)(with: dbData)\n\n"
-        mainString += "let _ = Connector.set(connector: connector)\n\n"
+        mainString += "guard Connector.set(\(dbData)) else {\n    print(\"Can not set connector\")\n    exit(1)\n\n"
         mainString += "let models: [ModelProtocol] = [\(tablesString)]\n\n"
         mainString += "let manager = MigrationManager(models: models)\n\n"
         mainString += "manager.migrate()\n"
@@ -65,12 +61,17 @@ class MigrationCommand: Command {
         let package = Path(components: [destRoot.absolute().description, "Package.swift"])
         var packageGenerator = PackageGenerator(name: "Migration")
         packageGenerator.dependencies.append(
-            db.package
+            PackageGenerator.Dependency(
+                name: "SquirrelConnector",
+                url: "https://github.com/LeoNavel/Squirrel-Connector.git",
+                from: "0.1.1"
+            )
         )
         packageGenerator.dependencies.append(
             PackageGenerator.Dependency(
+                name: "SquirrelMigrationManager",
                 url: "https://github.com/LeoNavel/Squirrel-MigrationManager.git",
-                major: "0"
+                from: "0"
             )
         )
         try? package.write(packageGenerator.generate())

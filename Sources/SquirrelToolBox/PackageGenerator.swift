@@ -14,27 +14,22 @@ struct PackageGenerator {
     }
     let name: String
 
-    var version: String = "3.1"
+    var version: String = "4.0"
 
     var dependencies = [Dependency]()
     struct Dependency: CustomStringConvertible {
+        let name: String
         let url: String
-        let major: String
-        let minor: String?
+        let from: String
 
-        init(url: String, major: String, minor: String? = nil) {
+        init(name: String, url: String, from: String) {
             self.url = url
-            self.major = major
-            self.minor = minor
+            self.from = from
+            self.name = name
         }
 
         var description: String {
-            var minorString = ""
-            if let minor = minor {
-                minorString = ", minor: \(minor)"
-            }
-
-            return ".Package(url: \"\(url)\", majorVersion: \(major)\(minorString))"
+            return ".package(url: \"\(url)\", from: \"\(from)\")"
         }
     }
 
@@ -45,6 +40,10 @@ struct PackageGenerator {
             dependenciesString = ",\n\tdependencies: [\n\t\t" + dependenciesString + "\n\t]"
 
         }
-        return "// swift-tools-version:\(version)\n\nimport PackageDescription\n\nlet package = Package(\n\tname: \"\(name)\"\(dependenciesString)\n)"
+        var targets = ""
+        targets = dependencies.map({ "\"\($0.name)\""}).joined(separator: ", ")
+        targets = ",\n\ttargets: [\n\t\t.target(\n\t\t\tname: \"\(name)\",\n\t\t\tdependencies: [\(targets)]),\n\t]"
+        return "// swift-tools-version:\(version)\n\nimport PackageDescription\n\nlet package = Package(\n\tname: \"\(name)\""
+        + ",\n\tproducts: [\n\t.executable(\n\t\tname: \"\(name)\",\n\t\ttargets: [\"\(name)\"]),\n\t]\(dependenciesString)\(targets)\n)\n"
     }
 }

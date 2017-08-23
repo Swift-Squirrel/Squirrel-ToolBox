@@ -34,9 +34,8 @@ class SeedCommand: Command {
         seedersDir = Path(components: [current.absolute().description, "Sources/" + exeName + "/Models/Database/Seeders"])
         destRoot = Path(components: [current.absolute().description, ".squirrel", "Seeders"])
         sourcesDir = Path(components: [destRoot.absolute().description, "Sources/Seeders"])
-        let config = current + "squirrel.yaml"
+        let config = current + ".squirrel.yaml"
         progress.next()
-        let (db, data) = try getDB(from: config)
 
         guard tablesDir.exists else {
             return
@@ -44,6 +43,7 @@ class SeedCommand: Command {
         guard seedersDir.exists else {
             return
         }
+        let dbData = try getDB(from: config)
         progress.next()
         try! destRoot.mkpath()
         try! sourcesDir.mkpath()
@@ -55,13 +55,9 @@ class SeedCommand: Command {
         progress.next()
         let seedersString = seeders.flatMap({ $0.lastComponentWithoutExtension + "()" }).joined(separator: ", ")
         let main = Path(components: [sourcesDir.absolute().description, "main.swift"])
-        var mainString = "import SquirrelSeederManager\nimport SquirrelConnector\n\n"
-        mainString += db.imp + "\n\n"
+        var mainString = "import SquirrelSeederManager\nimport SquirrelConnector\nimport Foundation\n\n"
 
-        let dbDataString = data.map( { "    \"" + $0.key + "\": " + stringRepresentation(of: $0.value) } ).joined(separator: ",\n    ")
-        mainString += "let dbData: [String: Any] = [\n    " + dbDataString + "\n]\n\n"
-        mainString += "let connector = try \(db.connectorName)(with: dbData)\n\n"
-        mainString += "let _ = Connector.set(connector: connector)\n\n"
+        mainString += "guard Connector.setConnector(\(dbData)) else {\n    print(\"Can not set connector\")\n    exit(1)\n}\n\n"
 
         mainString += "let manager = SeederManager(seeders: [\(seedersString)])\n\n"
         mainString += "manager.seeds()\n"
@@ -69,12 +65,10 @@ class SeedCommand: Command {
         let package = Path(components: [destRoot.absolute().description, "Package.swift"])
         var packageGenerator = PackageGenerator(name: "Seeders")
         packageGenerator.dependencies.append(
-            db.package
-        )
-        packageGenerator.dependencies.append(
             PackageGenerator.Dependency(
+                name: "SquirrelSeederManager",
                 url: "https://github.com/LeoNavel/Squirrel-SeederManager.git",
-                major: "0"
+                from: "0.0.2"
             )
         )
         try? package.write(packageGenerator.generate())

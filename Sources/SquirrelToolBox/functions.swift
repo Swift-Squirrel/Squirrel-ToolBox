@@ -25,7 +25,7 @@ func swiftRun(root path: Path) {
 }
 
 func swiftBuild(root path: Path, configuration: String = "debug") {
-    let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--chdir", path.absolute().description, "-c", configuration])
+    let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--package-path", path.absolute().description, "-c", configuration])
 }
 
 func stringRepresentation(of: Any) -> String {
@@ -49,31 +49,25 @@ func getConfig(path: Path) -> Yaml? {
     return yaml
 }
 
-func getDB(from path: Path) throws -> (db: DBTypes, data: [String: Any]) {
+func getDB(from path: Path) throws -> String {
     guard let yaml = getConfig(path: path) else {
         throw CLIError.error("Error in \(path.string)")
     }
 
-    guard let (databaseYaml, valuesYaml) = yaml["database"].dictionary?.first else {
+    guard let databaseYaml = yaml["MongoDB"].dictionary else {
         throw CLIError.error("Missing database informations in \(path.string)")
     }
-    guard let databaseName = databaseYaml.string else {
-        throw CLIError.error("Can not get database name from \(path.string)")
+    guard let host = databaseYaml["host"]?.string else {
+        throw CLIError.error("Missing host information in \(path.string)")
     }
-    let dbType: DBTypes
-    switch databaseName.lowercased() {
-    case "mysql":
-        dbType = .mysql
-    default:
-        throw CLIError.error("Unknown database '\(databaseName)' in \(path.string)")
-    }
+    let dbname = databaseYaml["dbname"]?.string ?? "squirrel"
+    let port = databaseYaml["port"]?.int ?? 27017
 
-    guard let valuesDic = valuesYaml.dictionary else {
-        throw CLIError.error("Can not get database name from \(path.string)")
+    if let username = databaseYaml["username"]?.string, let password = databaseYaml["password"]?.string {
+        return "username: \"\(username)\", password: \"\(password)\", host: \"\(host)\", port: \(port), dbname: \"\(dbname)\""
+    } else {
+        return "host: \"\(host)\", port: \(port), dbname: \"\(dbname)\""
     }
-
-    let values = dbType.parse(yaml: valuesDic)
-    return (db: dbType, data: values)
 }
 
 func getExecutableName(path: Path = Path()) -> String? {

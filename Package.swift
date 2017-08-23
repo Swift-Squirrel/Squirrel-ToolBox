@@ -1,17 +1,26 @@
-// swift-tools-version:3.1
-
+// swift-tools-version:4.0
 import PackageDescription
 
 let package = Package(
     name: "SquirrelToolBox",
-    targets: [
-        Target(name: "SquirrelToolBox", dependencies: ["SourceGenerator"])
-    ],
+    products: [
+        .executable(
+            name: "SquirrelToolBox",
+            targets: ["SquirrelToolBox"]),
+        ],
     dependencies: [
-        .Package(url: "https://github.com/jakeheis/SwiftCLI", majorVersion: 3, minor: 0),
-        .Package(url: "https://github.com/kylef/PathKit.git", majorVersion: 0, minor: 8),
-        .Package(url: "https://github.com/behrang/YamlSwift.git", majorVersion: 3, minor: 4),
-        .Package(url: "https://github.com/jkandzi/Progress.swift.git", majorVersion: 0, minor: 2),
-        .Package(url: "https://github.com/IBM-Swift/BlueSignals.git", majorVersion: 0, minor: 9)
+        .package(url: "https://github.com/kylef/PathKit.git",  from: "0.8.0"),
+        .package(url: "https://github.com/jakeheis/SwiftCLI",  from: "3.0.0"),
+        .package(url: "https://github.com/behrang/YamlSwift.git",  from: "3.4.0"),
+        .package(url: "https://github.com/jkandzi/Progress.swift.git",  from: "0.2.0"),
+        .package(url: "https://github.com/IBM-Swift/BlueSignals",  from: "0.9.0"),
+    ],
+    targets: [
+        .target(
+            name: "SquirrelToolBox",
+            dependencies: ["SourceGenerator", "SwiftCLI", "PathKit", "Yaml", "Progress", "Signals"]),
+        .target(
+            name: "SourceGenerator",
+            dependencies: []),
     ]
 )

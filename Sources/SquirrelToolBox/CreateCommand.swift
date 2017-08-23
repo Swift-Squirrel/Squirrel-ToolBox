@@ -87,16 +87,17 @@ class CreateCommand: Command {
 
         let generator = SourceGenerator()
         generator.imports += ["SquirrelConnector"]
-        var modelStruct = SourceStruct(name: seederPath.lastComponentWithoutExtension, protocols: ["SeederProtocol"])
+        var modelStruct = SourceStruct(name: seederPath.lastComponentWithoutExtension, protocols: ["Seeder"])
 
         let initMethod = SourceInit(variables: [])
 
         modelStruct.inits.append(initMethod)
 
         var function = SourceFunction(name: "setUp", throws: true, mutating: true)
-        function.body.append("models.append(\(name)())")
+        let end = "#>"
+        function.body.append("models.append(<#" + "Model" + end + ")")
         modelStruct.functions.append(function)
-        modelStruct.variables.append(SourceVariable(name: "models", type: "[ModelProtocol]", value: "[]"))
+        modelStruct.variables.append(SourceVariable(name: "models", type: "[Model]", value: "[]"))
 
         generator.content.append(modelStruct)
         try! seederPath.write(generator.generate)
@@ -111,10 +112,9 @@ class CreateCommand: Command {
 
         let generator = SourceGenerator()
         generator.imports += ["Foundation", "SquirrelConnector"]
-        var modelStruct = SourceStruct(name: modelPath.lastComponentWithoutExtension, protocols: ["ModelProtocol"])
-        modelStruct.inits.append(SourceInit(variables: []))
+        var modelStruct = SourceStruct(name: modelPath.lastComponentWithoutExtension, protocols: ["Model"])
         modelStruct.variables += [
-            SourceVariable(name: "id", type: "UInt", value: "0"),
+            SourceVariable(name: "id", type: "ObjectId?", value: "nil"),
             SourceVariable(name: "created", value: "Date()"),
             SourceVariable(name: "modified", value: "Date()")
         ]
