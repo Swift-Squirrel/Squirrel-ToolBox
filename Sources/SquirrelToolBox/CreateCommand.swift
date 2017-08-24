@@ -73,7 +73,7 @@ class CreateCommand: Command {
             return
         }
 
-        let string = "<!-- \(name).html -->\n\n\\title(\"\(name)\")\n\n<h1>\(name)</h1>\n"
+        let string = "<!-- \(name).html -->\n\n\\Title(\"\(name)\")\n\n<h1>\(name)</h1>\n"
 
         try! file.write(string)
     }
