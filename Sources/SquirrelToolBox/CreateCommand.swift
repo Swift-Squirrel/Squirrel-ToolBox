@@ -14,8 +14,8 @@ class CreateCommand: Command {
     let name = "create"
     let shortDescription = "Create model, controller or another file"
 
-    let type = Key<String>("-t", "--type", usage: "Values: [model|seeder|view]")
-    let typeValues = ["model", "view", "seeder"]
+    let type = Key<String>("-t", "--type", usage: "Values: [model|seeder|layout|view]")
+    let typeValues = ["model", "view", "seeder", "layout"]
 
     let fileName = Parameter()
 
@@ -45,6 +45,8 @@ class CreateCommand: Command {
             createModel(name: fileName)
         case "view":
             createView(name: fileName)
+        case "layout":
+            createLayout(name: fileName)
         case "seeder":
             createSeeder(name: fileName)
         default:
@@ -64,6 +66,29 @@ class CreateCommand: Command {
             }
         }
         return true
+    }
+    private func createLayout(name: String) {
+
+        let file = Path(components: [currentDir.description, "Resources", "Views", "Layouts", name.capitalized + ".nut"])
+        guard mkdirs(path: file) else {
+            return
+        }
+
+        let string = """
+            <!-- \(name).html -->
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                <h1>\(name)</h1>
+                \\View()
+            </body>
+            </html>
+            """
+
+        try! file.write(string)
     }
 
     private func createView(name: String) {
