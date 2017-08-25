@@ -36,21 +36,24 @@ class CreateCommand: Command {
 
         let fileName = self.fileName.value
 
-        guard !fileName.contains(" ") && !fileName.contains(".") else {
-            throw CLIError.error("fileName must be one word without '.' character")
+        guard !fileName.contains(" ") else {
+            throw CLIError.error("fileName must be one word character")
         }
+
+        let parts = fileName.split(separator: ".").map({ $0.capitalized })
+        let fullName = parts.joined(separator: "/")
 
         switch type {
         case "model":
-            createModel(name: fileName)
+            createModel(name: fullName)
         case "view":
-            createView(name: fileName)
+            createView(name: fullName)
         case "layout":
-            createLayout(name: fileName)
+            createLayout(name: fullName)
         case "subview":
-            createSubview(name: fileName)
+            createSubview(name: fullName)
         case "seeder":
-            createSeeder(name: fileName)
+            createSeeder(name: fullName)
         default:
             throw CLIError.error("Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))], got \(type)")
         }
@@ -71,7 +74,7 @@ class CreateCommand: Command {
     }
 
     private func createSubview(name: String) {
-        let file = Path(components: [currentDir.description, "Resources", "Views", "Subviews", name.capitalized + ".nut"])
+        let file = Path(components: [currentDir.description, "Resources", "Views", "Subviews", name + ".nut"])
         guard mkdirs(path: file) else {
             return
         }
