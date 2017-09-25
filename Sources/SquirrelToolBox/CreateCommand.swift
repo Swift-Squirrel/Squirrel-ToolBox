@@ -40,7 +40,7 @@ class CreateCommand: Command {
             throw CLI.Error(message: "fileName must be one word character", exitStatus: 1)
         }
 
-        let parts = fileName.split(separator: ".").map({ $0.capitalized })
+        let parts = fileName.split(separator: ".").map({ $0.description.capitalized })
         let fullName = parts.joined(separator: "/")
 
         switch type {

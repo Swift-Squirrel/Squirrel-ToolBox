@@ -9,6 +9,9 @@ import PathKit
 import SwiftCLI
 import Foundation
 import Signals
+#if os(Linux)
+    import Dispatch
+#endif
 
 class WatchCommand: Command {
     var name: String = "watch"
