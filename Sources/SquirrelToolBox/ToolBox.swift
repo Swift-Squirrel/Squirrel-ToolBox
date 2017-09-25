@@ -24,23 +24,26 @@ struct Pids {
 class ToolBox {
     private let pids = Pids.pids
     private let pidsDir = Pids.pidsDir
+    let cli: CLI
 
     init() {
-        CLI.setup(name: "Squirrel", version: "0.0.2", description: "Toolbox for squirrel framework")
-        CLI.register(commands: [
+        cli = CLI(name: "Squirrel", version: "0.0.3", description: "Toolbox for squirrel framework")
+//        cli
+        cli.commands = [
             ServeCommand(),
             StopCommand(),
             CreateCommand(),
 //            MigrationCommand(),
-            SeedCommand()
-            ])
+            SeedCommand(),
+            WatchCommand()
+            ]
         if !pidsDir.exists {
             try? pidsDir.mkpath() // TODO
         }
     }
 
     func run() {
-        let a = CLI.go()
+        let a = cli.go()
         print(a)
     }
 }

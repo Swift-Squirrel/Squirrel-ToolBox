@@ -14,7 +14,7 @@ class CreateCommand: Command {
     let name = "create"
     let shortDescription = "Create model, controller or another file"
 
-    let type = Key<String>("-t", "--type", usage: "Values: [model|seeder|layout|view|subview]")
+    let type = Key<String>("-t", "--type", description: "Values: [model|seeder|layout|view|subview]")
     let typeValues = ["model", "view", "seeder", "layout", "subview"]
 
     let fileName = Parameter()
@@ -25,11 +25,11 @@ class CreateCommand: Command {
 
     func execute() throws {
         guard let type = type.value, typeValues.contains(type) else {
-            throw CLIError.error("Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))]")
+            throw CLI.Error(message: "Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))]", exitStatus: 1)
         }
 
         guard let pom = getExecutableName() else {
-            throw CLIError.error("Can not get executable name, check if you are in project root directory")
+            throw CLI.Error(message: "Can not get executable name, check if you are in project root directory", exitStatus: 1)
         }
 
         exeName = pom
@@ -37,7 +37,7 @@ class CreateCommand: Command {
         let fileName = self.fileName.value
 
         guard !fileName.contains(" ") else {
-            throw CLIError.error("fileName must be one word character")
+            throw CLI.Error(message: "fileName must be one word character", exitStatus: 1)
         }
 
         let parts = fileName.split(separator: ".").map({ $0.capitalized })
@@ -55,7 +55,7 @@ class CreateCommand: Command {
         case "seeder":
             createSeeder(name: fullName)
         default:
-            throw CLIError.error("Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))], got \(type)")
+            throw CLI.Error(message: "Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))], got \(type)", exitStatus: 1)
         }
     }
 

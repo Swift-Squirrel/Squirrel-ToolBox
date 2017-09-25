@@ -15,20 +15,20 @@ class ServeCommand: Command {
 
     let shortDescription = "Run server"
 
-    private let detach = Flag("-d", "--detach", usage: "Run in background")
-    private let build = Flag("-b", "--build", usage: "Build project before run")
-    private let configuration = Key<String>("-c", "--configuration", usage: "Values: debug|release (default: debug)")
+    private let detach = Flag("-d", "--detach", description: "Run in background")
+    private let build = Flag("-b", "--build", description: "Build project before run")
+    private let configuration = Key<String>("-c", "--configuration", description: "Values: debug|release (default: debug)")
     private let configurationValues = ["debug", "release"]
 
     func execute() throws {
         let conf = configuration.value ?? configurationValues.first!
         guard configurationValues.contains(conf) else {
-            throw CLIError.error("--configuration expects \(configurationValues.joined(separator: "|")) but \(conf) given.")
+            throw CLI.Error(message: "--configuration expects \(configurationValues.joined(separator: "|")) but \(conf) given.", exitStatus: 1)
         }
         let path = Path(components: [Path().absolute().description, ".build/" + conf])
         guard let exe = getExecutableName() else {
             print("error")
-            throw CLIError.error("Error in parsing Package.swift")
+            throw CLI.Error(message: "Error in parsing Package.swift", exitStatus: 1)
         }
         let packagePath = Path(components: [Path().absolute().description, "Package.swift"])
         if packagePath.exists && packagePath.isFile {

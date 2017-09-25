@@ -26,7 +26,7 @@ class MigrationCommand: Command {
         var progress = ProgressBar(count: 7)
         progress.next()
         guard let exName = getExecutableName() else {
-            throw CLIError.error("Could not resolve executable name")
+            throw CLI.Error(message: "Could not resolve executable name", exitStatus: 1)
         }
         exeName = exName
         tablesDir = current + ("Sources/" + exeName + "/Models/Database/Tables")
@@ -40,7 +40,7 @@ class MigrationCommand: Command {
 
         progress.next()
         guard tablesDir.exists else {
-            throw CLIError.error("\(tablesDir.string) does not exists")
+            throw CLI.Error(message: "\(tablesDir.string) does not exists", exitStatus: 1)
         }
         try! destRoot.mkpath()
         try! sourcesDir.mkpath()

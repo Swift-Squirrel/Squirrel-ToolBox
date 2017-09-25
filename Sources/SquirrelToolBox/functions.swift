@@ -24,8 +24,10 @@ func swiftRun(root path: Path) {
     task.waitUntilExit()
 }
 
-func swiftBuild(root path: Path, configuration: String = "debug") {
-    let _ = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--package-path", path.absolute().description, "-c", configuration])
+@discardableResult
+func swiftBuild(root path: Path, configuration: String = "debug") -> Int32 {
+    let res = shell(launchPath: "/usr/bin/env", executable: "swift", arguments: ["build", "--package-path", path.absolute().description, "-c", configuration])
+    return res.status
 }
 
 func stringRepresentation(of: Any) -> String {
@@ -51,14 +53,14 @@ func getConfig(path: Path) -> Yaml? {
 
 func getDB(from path: Path) throws -> String {
     guard let yaml = getConfig(path: path) else {
-        throw CLIError.error("Error in \(path.string)")
+        throw CLI.Error(message: "Error in \(path.string)", exitStatus: 1)
     }
 
     guard let databaseYaml = yaml["MongoDB"].dictionary else {
-        throw CLIError.error("Missing database informations in \(path.string)")
+        throw CLI.Error(message: "Missing database informations in \(path.string)", exitStatus: 1)
     }
     guard let host = databaseYaml["host"]?.string else {
-        throw CLIError.error("Missing host information in \(path.string)")
+        throw CLI.Error(message: "Missing host information in \(path.string)", exitStatus: 1)
     }
     let dbname = databaseYaml["dbname"]?.string ?? "squirrel"
     let port = databaseYaml["port"]?.int ?? 27017
