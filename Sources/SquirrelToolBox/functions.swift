@@ -9,7 +9,7 @@
 import Foundation
 import PathKit
 import SwiftCLI
-import Yaml
+import Yams
 
 func swiftRun(root path: Path) {
     let path = Path(components: [path.absolute().description, ".build/release"])
@@ -41,11 +41,12 @@ func stringRepresentation(of: Any) -> String {
     }
 }
 
-func getConfig(path: Path) -> Yaml? {
+func getConfig(path: Path) -> Yams.Node? {
     guard let content: String = try? path.read() else {
         return nil
     }
-    guard let yaml = try? Yaml.load(content) else {
+    let yamlTree = (try? Yams.compose(yaml: content)) as? Yams.Node
+    guard let yaml = yamlTree else {
         return nil
     }
     return yaml
@@ -56,7 +57,7 @@ func getDB(from path: Path) throws -> String {
         throw CLI.Error(message: "Error in \(path.string)", exitStatus: 1)
     }
 
-    guard let databaseYaml = yaml["MongoDB"].dictionary else {
+    guard let databaseYaml = yaml["MongoDB"]?.mapping else {
         throw CLI.Error(message: "Missing database informations in \(path.string)", exitStatus: 1)
     }
     guard let host = databaseYaml["host"]?.string else {

@@ -9,7 +9,6 @@
 import SwiftCLI
 import PathKit
 import Progress
-import Yaml
 
 class MigrationCommand: Command {
     let name = "migrate"
