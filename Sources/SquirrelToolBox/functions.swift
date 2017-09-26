@@ -124,10 +124,17 @@ func removePID(pid: String? = nil) throws {
         return
     }
     pids.remove(at: index)
-    let _ = shell(launchPath: "/usr/bin/env", executable: "kill", arguments: ["-9", stoppingPID])
+    kill(pid: stoppingPID)
     var newContent = pids.joined(separator: "\n")
     if newContent != "" {
         newContent += "\n"
     }
     try! Pids.pids.write(newContent)
+}
+
+func kill(pid: String) {
+    let _ = shell(launchPath: "/usr/bin/env", executable: "kill", arguments: ["-9", pid])
+}
+func kill(pid: Int32) {
+    kill(pid: pid.description)
 }

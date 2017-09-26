@@ -52,7 +52,11 @@ class ServeCommand: Command {
         Signals.trap(signals: [.int, .abrt, .kill, .term, .quit]) {
             _ in
             for task in Pids.tasks {
-                task.terminate()
+                #if os(Linux)
+                    kill(pid: task.processIdentifier)
+                #else
+                    task.terminate()
+                #endif
                 let stoppingPID = String(describing: task.processIdentifier)
                 guard Pids.pids.exists else {
                     return
@@ -82,4 +86,3 @@ class ServeCommand: Command {
         }
     }
 }
-

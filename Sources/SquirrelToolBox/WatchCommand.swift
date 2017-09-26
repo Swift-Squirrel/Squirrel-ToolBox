@@ -48,14 +48,24 @@ class WatchCommand: Command {
         willSet {
             if let old = currenTask {
                 old.terminationHandler = nil
-                old.terminate()
+                #if os(Linux)
+                    kill(pid: old.processIdentifier)
+                #else
+                    old.terminate()
+                #endif
             }
         }
     }
 
     private static var currentBuild: Process? = nil {
         didSet {
+        #if os(Linux)
+            if let process = oldValue {
+                kill(pid: process.processIdentifier)
+            }
+        #else
             oldValue?.terminate()
+        #endif
         }
     }
 
@@ -101,27 +111,41 @@ class WatchCommand: Command {
             guard localBuild == build else {
                 return
             }
-            let path = Path().absolute() + ".build/debug"
-            let task = createTask(launchPath: path, executable: exe, detached: true)
-            WatchCommand.currenTask?.terminate()
-            task.launch()
-            task.terminationHandler = {
+            let runTask = Process()
+            runTask.launchPath = "/usr/bin/env"
+            runTask.arguments = ["swift", "run", "--package-path", Path().absolute().string]
+            #if os(Linux)
+                let pipe = Pipe()
+                runTask.standardOutput = pipe
+                runTask.standardError = pipe
+            #else
+                runTask.standardOutput = FileHandle.nullDevice
+                runTask.standardError = FileHandle.nullDevice
+            #endif
+            runTask.terminationHandler = {
                 [weak self] _ in
                 guard let ss = self else {
                     return
                 }
                 ss.shouldRerun = true
             } as ((Process) -> Void)
-            WatchCommand.currenTask = task
+            runTask.launch()
+            WatchCommand.currenTask = runTask
             shouldRerun = false
             signalTrap()
         }
     }
 
     private func signalTrap() {
-        Signals.trap(signals: [.int, .abrt, .kill, .term, .quit]) {
+        Signals.trap(signals: [.hup, .int, .quit, .abrt, .kill, .alrm, .term, .pipe]) {
             signal in
-            WatchCommand.currenTask?.terminate()
+            #if os(Linux)
+                if let task = WatchCommand.currenTask {
+                    kill(pid: task.processIdentifier)
+                }
+            #else
+                WatchCommand.currenTask?.terminate()
+            #endif
             exit(signal)
         }
     }
@@ -143,14 +167,23 @@ class WatchCommand: Command {
                     return
                 }
                 if ss.check(path: path) {
-                    ss.rerun(executable: exeName)
+                   ss.rerun(executable: exeName)
                 }
             }
             sleep(1)
         }
     }
     deinit {
-        WatchCommand.currenTask?.terminate()
-        WatchCommand.currentBuild?.terminate()
+        #if os(Linux)
+            if let task = WatchCommand.currenTask {
+                kill(pid: task.processIdentifier)
+            }
+            if let task = WatchCommand.currentBuild {
+                kill(pid: task.processIdentifier)
+            }
+        #else
+            WatchCommand.currenTask?.terminate()
+            WatchCommand.currentBuild?.terminate()
+        #endif
     }
 }

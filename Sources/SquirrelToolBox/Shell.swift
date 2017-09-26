@@ -48,8 +48,14 @@ func createTask(launchPath: Path, executable: String, arguments: [String] = [], 
     task.launchPath = launchPath.absolute().description + "/" + executable
     task.arguments = arguments
     if detached {
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError = FileHandle.nullDevice
+        #if os(Linux)
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+        #else
+            task.standardOutput = FileHandle.nullDevice
+            task.standardError = FileHandle.nullDevice
+        #endif
     } else {
         task.standardOutput = FileHandle.standardOutput
         task.standardError = FileHandle.standardOutput
