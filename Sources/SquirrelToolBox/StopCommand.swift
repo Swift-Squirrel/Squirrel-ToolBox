@@ -14,14 +14,14 @@ class StopCommand: Command {
     let shortDescription = "Stop server"
 
     let stopingPid = OptionalParameter()
+    // TODO stop all tasks
+    // TODO show all running tasks
 
     func execute() throws {
         if let stopingPid = stopingPid.value {
-            try! removePID(pid: stopingPid)
+            try removePID(pid: stopingPid)
         } else {
-            try! removePID()
+            try removePID()
         }
-        
     }
 }
-

@@ -15,36 +15,38 @@ struct Pids {
     static let stringPidsFile = "squirrel.pid"
     static let pids = Path(components: [stringPidsDir, stringPidsFile])
     static let pidsDir = Path(stringPidsDir)
-    static var tasks = [Process]()
-    private init() {
-
+    static var task = Process() {
+        willSet {
+            task.osTerminate()
+        }
     }
+    private init() { }
 }
 
-class ToolBox {
+final class ToolBox {
     private let pids = Pids.pids
     private let pidsDir = Pids.pidsDir
-    let cli: CLI
+    private let cli: CLI
+    private let version = "0.1.0"
 
-    init() {
-        cli = CLI(name: "Squirrel", version: "0.0.3", description: "Toolbox for squirrel framework")
-//        cli
+    init() throws {
+        cli = CLI(
+            name: "Squirrel",
+            version: version,
+            description: "Toolbox for swift Squirrel framework")
+
         cli.commands = [
             ServeCommand(),
             StopCommand(),
             CreateCommand(),
-//            MigrationCommand(),
-            SeedCommand(),
             WatchCommand()
             ]
         if !pidsDir.exists {
-            try? pidsDir.mkpath() // TODO
+            try pidsDir.mkpath()
         }
     }
 
-    func run() {
-        let a = cli.go()
-        print(a)
+    func run() -> Int32 {
+        return cli.go()
     }
 }
-

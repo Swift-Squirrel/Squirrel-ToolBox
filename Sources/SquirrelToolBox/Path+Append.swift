@@ -8,10 +8,10 @@
 
 import PathKit
 import Foundation
+import SwiftCLI
 
 extension Path {
     func append(_ data: Data) throws {
-        let path = absolute().description
         if exists {
             if let fileHandle = try? FileHandle(forUpdating: url) {
                 defer {
@@ -21,9 +21,13 @@ extension Path {
                 fileHandle.write(data)
                 fileHandle.closeFile()
 
+            } else {
+                throw CLI.Error(message: "Could not get file handle for path \(string)")
             }
         } else {
-            try write(data)
+            guard (try? write(data)) != nil else {
+                throw CLI.Error(message: "Could not write data to: \(string)")
+            }
         }
     }
 
@@ -31,7 +35,7 @@ extension Path {
         if let data = string.data(using: .utf8) {
             try append(data)
         } else {
-            print("Error")  // TODO else
+            throw CLI.Error(message: "Internal error - can not represent \(string) in utf8")
         }
     }
 }

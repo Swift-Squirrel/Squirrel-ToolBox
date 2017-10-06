@@ -6,20 +6,16 @@
 //
 //
 
+/// Source part
 public protocol SourcePartProtocol {
     func intendedDescription(intends: String) -> String
-    
 }
 
-public protocol SourceVariableProtocol: SourcePartProtocol {
-    
-}
+/// Variable
+public protocol SourceVariableProtocol: SourcePartProtocol { }
 
-public protocol SourceInitProtocol: SourcePartProtocol {
+/// Init of struct or class
+public protocol SourceInitProtocol: SourcePartProtocol { }
 
-}
-
-public protocol SourceFunctionProtocol: SourcePartProtocol {
-    
-}
-
+/// Function
+public protocol SourceFunctionProtocol: SourcePartProtocol { }
