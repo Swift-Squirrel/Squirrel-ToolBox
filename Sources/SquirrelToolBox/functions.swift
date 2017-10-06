@@ -9,7 +9,6 @@
 import Foundation
 import PathKit
 import SwiftCLI
-import Yams
 
 enum SwiftCommand: String {
     case run
@@ -42,7 +41,33 @@ func swift(command: SwiftCommand, arguments: [String] = [], silenced: Bool = tru
     return runTask
 }
 
-func removePID(pid: String? = nil) throws {
+func removeAllPIDs() throws {
+    guard Pids.pids.exists else {
+        return
+    }
+    guard let content: String = try? Pids.pids.read() else {
+        throw CLI.Error(message: "Could not read content of \(Pids.pids.string)")
+    }
+    guard content != "" else {
+        return
+    }
+
+    let pids = content.components(separatedBy: "\n").filter({ $0 != "" })
+    guard pids.count > 0 else {
+        return
+    }
+
+    pids.forEach {
+        pid in
+        kill(pid: pid)
+    }
+    let newContent = ""
+    guard (try? Pids.pids.write(newContent)) != nil else {
+        throw CLI.Error(message: "Could not write into \(Pids.pids.string)")
+    }
+}
+
+func removePID(pid: String? = nil, kill killTask: Bool = true) throws {
     guard Pids.pids.exists else {
         return
     }
@@ -62,7 +87,8 @@ func removePID(pid: String? = nil) throws {
         stoppingPID = pid!
     } else {
         guard pids.count == 1 else {
-            return
+            throw CLI.Error(message:
+                "Found multiple PIDs, use `stop --all` or specify PID with `stop <PID>`")
         }
     }
 
@@ -70,7 +96,9 @@ func removePID(pid: String? = nil) throws {
         return
     }
     pids.remove(at: index)
-    kill(pid: stoppingPID)
+    if killTask {
+        kill(pid: stoppingPID)
+    }
     var newContent = pids.joined(separator: "\n")
     if newContent != "" {
         newContent += "\n"

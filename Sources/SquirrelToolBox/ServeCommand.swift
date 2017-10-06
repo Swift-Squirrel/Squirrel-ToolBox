@@ -43,6 +43,10 @@ class ServeCommand: Command {
             defer {
                 task.osTerminate()
             }
+            task.terminationHandler = {
+                process in
+                try? removePID(pid: process.processIdentifier.description, kill: false)
+            }
             try Pids.pids.append("\(task.processIdentifier)\n")
             Pids.task = task
             if !detach.value {

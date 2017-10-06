@@ -38,9 +38,10 @@ final class ToolBox {
         cli.commands = [
             ServeCommand(),
             StopCommand(),
-            CreateCommand(),
-            WatchCommand()
-            ]
+            PSCommand(),
+            WatchCommand(),
+            CreateCommand()
+        ]
         if !pidsDir.exists {
             try pidsDir.mkpath()
         }
