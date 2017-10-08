@@ -7,22 +7,9 @@
 #
 #
 
-if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$1" == "help" ]; then
-	echo "Usage: ./install.sh [options]"
-	echo ""
-	echo "Installation script fot SquirrelToolbox"
-	echo ""
-	echo "options:"
-	echo "  --verbose, -v           Increase verbosity of informational output"
-	echo "  --verbose-all, -va      Set verbose flag in subprocesses"
-	echo "  --help, -h              Prints this help"
-	exit 0
-elif [ "$1" == "-v" ] || [ "$1" == "--verbose" ]; then
-	VERBOSE=1
-elif [ "$1" == "-va" ] || [ "$1" == "--verbose-all" ]; then
-	VERBOSE=1
-	VERBOSE_ALL=1
-fi
+HELP="0"
+VERBOSE="0"
+VERBOSE_ALL="0"
 
 COFF='\033[0m'		# Text Reset
 B='\033[0;34m'		# Blue
@@ -38,7 +25,10 @@ red() {
 }
 
 error() {
-	red "ERR\nERROR: $1"
+	if [ "$VERBOSE" == "0" ]; then
+		red "ERR"
+	fi
+	red "ERROR: $1"
     exit 1
 }
 
@@ -83,19 +73,51 @@ spinner() {
 }
 
 ########################################
+# Check arguments
+########################################
+
+for i in "$@" ; do
+    if [ "$i" == "-h" ] || [ "$i" == "--help" ] || [ "$i" == "help" ]; then
+        HELP="1"
+        break
+    elif [ "$i" == "-v" ] || [ "$i" == "--verbose" ]; then
+    	VERBOSE="1"
+    elif [ "$i" == "-va" ] || [ "$i" == "--verbose-all" ]; then
+    	VERBOSE_ALL="1"
+    	VERBOSE="1"
+    else
+    	red "Unknown argument $i"
+    	exit 1
+    fi
+done
+
+if [[ $HELP == 1 ]]; then
+	echo "Usage: ./install.sh [options]"
+	echo ""
+	echo "Installation script fot SquirrelToolbox"
+	echo ""
+	echo "options:"
+	echo "  --verbose, -v           Increase verbosity of informational output"
+	echo "  --verbose-all, -va      Set verbose flag in subprocesses"
+	echo "  --help, -h              Prints this help"
+	exit 0
+fi
+
+########################################
 # Check if squirrel exists on system
 ########################################
 
 EXECUTABLE="squirrel"
 usrBinPath="/usr/local/bin"
 resultBinPath="$usrBinPath/$EXECUTABLE"
-verbose "Checking for existence $resultBinPath"
+echo -en "Checking system preconditions\t"
+verbose "\nChecking for existence $resultBinPath"
 if [ -e "$resultBinPath" ]; then
 	while true; do
-	    read -p "`warning "$resultBinPath already exists. Do you want to overwrite it? [Yn] "`" yn
+	    read -p "`warning "\n$resultBinPath already exists. Do you want to overwrite it? [Yn] "`" yn
 	    case $yn in
-	        [Yy]* ) break;;
-	        [Nn]* ) exit;;
+	        [Yy]* ) verbose "User allow overwrite $resultBinPath"; break;;
+	        [Nn]* ) verbose "User cancel installation"; exit;;
 	        * ) echo "Please answer Y or n.";;
 	    esac
 	done
@@ -107,6 +129,14 @@ else
 	fi
 	verbose "$EXECUTABLE does not exists"
 fi
+
+verbose "\nChecking permissions for $usrBinPath"
+if [ ! -w "$usrBinPath" ]; then
+	error "Dont have permissions to write to $usrBinPath"
+fi
+verbose "Permissions ok"
+
+logVOK "System preconditions ok"
 
 ########################################
 # Check system environment
@@ -126,6 +156,7 @@ if [ "`swift --version | head -n 1 | cut -d' ' -f4 | cut -d'.' -f1`" != "4" ] &&
 fi
 
 logVOK "\tswift4 OK"
+
 verbose 'Enviroment check successful'
 
 ########################################
@@ -149,10 +180,11 @@ else
 fi
 
 if [ "$?" != 0 ]; then
-	error 'Can not resolve dependencies'
+	error 'Could not resolve dependencies'
 fi
 logVOK "Resolving successful"
-echo -ne "Building source\t\t\t"
+
+echo -ne "Building from source\t\t"
 verbose "\nswift build -c release"
 if [ "$VERBOSE" == "1" ]; then
 	if [ "$VERBOSE_ALL" == "1" ]; then
@@ -167,9 +199,23 @@ fi
 if [ "$?" != 0 ]; then
 	error 'Build failed'
 fi
-logVOK "Building successful"
+verbose "Building successful"
 
-verbose "Building from source successful"
+binPath="`pwd`/.build/release/SquirrelToolbox"
+
+verbose "Checking for existence of $binPath (should exists)"
+if [ ! -e "$binPath" ]; then
+	error "Could not find SquirrelToolbox executable at $binPath"
+fi
+verbose "$binPath exists"
+
+verbose "Checking if $binPath is executable and you have permissions"
+if [ ! -x "$binPath" ]; then
+	error "You don't have permissions to execute $binPath"
+fi
+verbose "Permissions to execute ok"
+
+logVOK "Building successful"
 
 ########################################
 # Move to /usr/local/bin
@@ -177,20 +223,7 @@ verbose "Building from source successful"
 
 echo -ne "Moving SquirrelToolbox\t\t"
 
-verbose "\nChecking permissions for $usrBinPath"
-if [ ! -w "$usrBinPath" ]; then
-	error "Dont have permissions to write to $usrBinPath, use \`sudo\`"
-fi
-verbose "Permissions ok"
-verbose "Getting binary path"
-
-binPath="`swift build -c release --show-bin-path`/SquirrelToolbox"
-
-if [ "$?" != "0" ] || [ ! -x "$binPath" ]; then
-	error "Could not get binary ($binPath) or you don't have permissions to execute it"
-fi
-verbose "Bin path is $binPath"
-verbose "mv \"$binPath\" \"$resultBinPath\""
+verbose "\nmv \"$binPath\" \"$resultBinPath\""
 mv "$binPath" "$resultBinPath"
 if [ "$?" != 0 ]; then
 	error "mv \"$binPath\" \"$resultBinPath\" returns with error"
@@ -204,13 +237,14 @@ logVOK "Moving successful"
 
 echo -ne "Checking \`$EXECUTABLE help\`\t"
 verbose "\nChecking return status"
+verbose "$EXECUTABLE help"
 helpRes="`"$EXECUTABLE" help`"
 statusRes="$?"
 if [ "$statusRes" != "0" ]; then
 	if [ "$statusRes" == "127" ]; then
 		error "Install error - $EXECUTABLE does not exists"
 	else
-		error "Install error"
+		error "$EXECUTABLE returns nonzero status"
 	fi
 fi
 verbose "Status is ok"
@@ -222,6 +256,42 @@ verbose "Stdout is ok"
 logVOK "Executable OK"
 
 ########################################
-# Everything is ok!
+# Cleaning
+########################################
+CLEAN_ERROR="0"
+echo -en "Clean artifacts\t\t\t"
+verbose "\nswift package clean"
+swift package clean
+if [ "$?" != "0" ]; then
+	verbose "`warning "Warning: swift package clean error"`"
+	CLEAN_ERROR="1"
+fi
+verbose "rm -rf .build"
+rm -rf .build
+if [ "$?" != "0" ]; then
+	verbose "`warning "Warning: rm -rf .build error"`"
+	CLEAN_ERROR="1"
+fi
+verbose "rm Package.resolved"
+rm Package.resolved
+if [ "$?" != "0" ]; then
+	verbose "`warning "Warning: rm Package.resolved error"`"
+	CLEAN_ERROR="1"
+fi
+
+if [ "$CLEAN_ERROR" == "1" ]; then
+	if [ "$VERBOSE" == "1" ]; then
+		warning "Clean warnings generated"
+	else
+		warning "WARNINGS"
+	fi
+else
+	logVOK "Clean successful"
+fi
+if [ "$CLEAN_ERROR" != "0" ]; then
+	warning "Could not clean all artifacts"
+fi
+########################################
+# Installation done
 ########################################
 ok "\nInstallation was successful, run \`squirrel help\` to show help"
