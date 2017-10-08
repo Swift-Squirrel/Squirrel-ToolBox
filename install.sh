@@ -7,10 +7,6 @@
 #
 #
 
-HELP="0"
-VERBOSE="0"
-VERBOSE_ALL="0"
-
 COFF='\033[0m'		# Text Reset
 B='\033[0;34m'		# Blue
 
@@ -76,6 +72,12 @@ spinner() {
 # Check arguments
 ########################################
 
+
+HELP="0"
+VERBOSE="0"
+VERBOSE_ALL="0"
+FORCE="0"
+
 for i in "$@" ; do
     if [ "$i" == "-h" ] || [ "$i" == "--help" ] || [ "$i" == "help" ]; then
         HELP="1"
@@ -85,6 +87,8 @@ for i in "$@" ; do
     elif [ "$i" == "-va" ] || [ "$i" == "--verbose-all" ]; then
     	VERBOSE_ALL="1"
     	VERBOSE="1"
+    elif [ "$i" == "-f" ] || [ "$i" == "--force" ]; then
+    	FORCE="1"
     else
     	red "Unknown argument $i"
     	exit 1
@@ -99,6 +103,7 @@ if [[ $HELP == 1 ]]; then
 	echo "options:"
 	echo "  --verbose, -v           Increase verbosity of informational output"
 	echo "  --verbose-all, -va      Set verbose flag in subprocesses"
+	echo "  --force, -f             Force install"
 	echo "  --help, -h              Prints this help"
 	exit 0
 fi
@@ -111,25 +116,28 @@ EXECUTABLE="squirrel"
 usrBinPath="/usr/local/bin"
 resultBinPath="$usrBinPath/$EXECUTABLE"
 echo -en "Checking system preconditions\t"
-verbose "\nChecking for existence $resultBinPath"
-if [ -e "$resultBinPath" ]; then
-	while true; do
-	    read -p "`warning "\n$resultBinPath already exists. Do you want to overwrite it? [Yn] "`" yn
-	    case $yn in
-	        [Yy]* ) verbose "User allow overwrite $resultBinPath"; break;;
-	        [Nn]* ) verbose "User cancel installation"; exit;;
-	        * ) echo "Please answer Y or n.";;
-	    esac
-	done
-else
-	verbose "Checking for existance of $EXECUTABLE (should not)"
-	hash "$EXECUTABLE" 2>/dev/null
-	if [ "$?" == "0" ]; then
-		error "executable $EXECUTABLE already exists at `whereis "$EXECUTABLE"`"
+if [ "$FORCE" == "0" ]; then
+	verbose "\nChecking for existence $resultBinPath"
+	if [ -e "$resultBinPath" ]; then
+		while true; do
+		    read -p "`warning "\n$resultBinPath already exists. Do you want to overwrite it? [Yn] "`" yn
+		    case $yn in
+		        [Yy]* ) verbose "User allow overwrite $resultBinPath"; break;;
+		        [Nn]* ) verbose "User cancel installation"; exit;;
+		        * ) echo "Please answer Y or n.";;
+		    esac
+		done
+	else
+		verbose "Checking for existance of $EXECUTABLE (should not)"
+		hash "$EXECUTABLE" 2>/dev/null
+		if [ "$?" == "0" ]; then
+			error "executable $EXECUTABLE already exists at `whereis "$EXECUTABLE"`"
+		fi
+		verbose "$EXECUTABLE does not exists"
 	fi
-	verbose "$EXECUTABLE does not exists"
+else
+	verbose "\nSkipping existence checking of $EXECUTABLE due to --force flag"
 fi
-
 verbose "\nChecking permissions for $usrBinPath"
 if [ ! -w "$usrBinPath" ]; then
 	error "Dont have permissions to write to $usrBinPath"
