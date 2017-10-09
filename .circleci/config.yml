@@ -1,0 +1,21 @@
+default_docker: &default_docker
+  docker:
+    - image: swiftdocker/swift
+
+version: 2.0
+jobs:
+  test_install:
+    <<: *default_docker
+    steps:
+      - checkout
+      - run:
+          name: Test install
+          command: |
+           make install
+           ./install -f
+
+workflows:
+  version: 2
+  installation_test:
+    jobs:
+      - test_install
