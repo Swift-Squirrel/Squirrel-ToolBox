@@ -95,26 +95,33 @@ for i in "$@" ; do
     fi
 done
 
+if [ "$expectArg" == "1" ]; then
+	red "Missing argument for $waitingForArg"
+	exit 1
+fi
+
+
 if [[ $HELP == 1 ]]; then
 	echo "Usage: ./install.sh [options]"
 	echo ""
 	echo "Installation script fot SquirrelToolbox"
 	echo ""
 	echo "options:"
+	echo "  --force, -f             Force install"
 	echo "  --verbose, -v           Increase verbosity of informational output"
 	echo "  --verbose-all, -va      Set verbose flag in subprocesses"
-	echo "  --force, -f             Force install"
 	echo "  --help, -h              Prints this help"
 	exit 0
 fi
+
+EXECUTABLE="squirrel"
+usrBinPath="/usr/local/bin"
+resultBinPath="$usrBinPath/$EXECUTABLE"
 
 ########################################
 # Check if squirrel exists on system
 ########################################
 
-EXECUTABLE="squirrel"
-usrBinPath="/usr/local/bin"
-resultBinPath="$usrBinPath/$EXECUTABLE"
 echo -en "Checking system preconditions\t"
 if [ "$FORCE" == "0" ]; then
 	verbose "\nChecking for existence $resultBinPath"
