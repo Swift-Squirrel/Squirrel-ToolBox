@@ -1,7 +1,12 @@
+//
+//  main.swift
+//  SquirrelToolBox
+//
+//  Created by Filip Klembara on 7/30/17.
+//
+
 import Foundation
 
+let toolbox = try ToolBox()
 
-let toolbox = ToolBox()
-
-toolbox.run()
-
+exit(toolbox.run())

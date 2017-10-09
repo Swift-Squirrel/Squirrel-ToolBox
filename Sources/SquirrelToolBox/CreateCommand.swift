@@ -9,30 +9,26 @@
 import SwiftCLI
 import PathKit
 import SourceGenerator
+import Foundation
 
-class CreateCommand: Command {
+final class CreateCommand: Command {
     let name = "create"
     let shortDescription = "Create model, controller or another file"
 
-    let type = Key<String>("-t", "--type", description: "Values: [model|seeder|layout|view|subview]")
-    let typeValues = ["model", "view", "seeder", "layout", "subview"]
+    let type = Key<String>("-t", "--type", description: "Values: [model|layout|view|subview]")
+    let typeValues = ["model", "view", "layout", "subview"]
 
-    let fileName = Parameter()
+    private let fileName = Parameter()
 
-    let currentDir = Path().absolute()
-
-    var exeName = ""
+    private let currentDir = Path().absolute()
+    private let nutExtension = ".nut"
+    private let viewRoot = "Resources/NutViews"
 
     func execute() throws {
         guard let type = type.value, typeValues.contains(type) else {
-            throw CLI.Error(message: "Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))]", exitStatus: 1)
+            let typeValues = self.typeValues.joined(separator: "|")
+            throw CLI.Error(message:"Bad value for --type, expected one of [\(typeValues)]")
         }
-
-        guard let pom = getExecutableName() else {
-            throw CLI.Error(message: "Can not get executable name, check if you are in project root directory", exitStatus: 1)
-        }
-
-        exeName = pom
 
         let fileName = self.fileName.value
 
@@ -40,58 +36,67 @@ class CreateCommand: Command {
             throw CLI.Error(message: "fileName must be one word character", exitStatus: 1)
         }
 
-        let parts = fileName.split(separator: ".").map({ $0.capitalized })
-        let fullName = parts.joined(separator: "/")
+        let fullName = fileName.split(separator: ".")
+            .map { $0.description.capitalized }
+            .joined(separator: "/")
 
+        let factory: (String) throws -> Void
         switch type {
         case "model":
-            createModel(name: fullName)
+            factory = createModel
         case "view":
-            createView(name: fullName)
+            factory = createView
         case "layout":
-            createLayout(name: fullName)
+            factory = createLayout
         case "subview":
-            createSubview(name: fullName)
-        case "seeder":
-            createSeeder(name: fullName)
+            factory = createSubview
         default:
-            throw CLI.Error(message: "Bad value for --type, expected one of [\(typeValues.joined(separator: "|"))], got \(type)", exitStatus: 1)
+            let typeValues = self.typeValues.joined(separator: "|")
+            throw CLI.Error(message: "Bad value for --type, expected one of [\(typeValues)]"
+                + " but got \(type)")
         }
+        try factory(fullName)
     }
 
-    private func mkdirs(path: Path) -> Bool {
+    private func mkdirs(path: Path) throws -> Bool {
         let dir = path.parent().absolute()
         if !dir.exists {
-            try! dir.mkpath()
+            guard (try? dir.mkpath()) != nil else {
+                throw CLI.Error(message: "Can not make path '\(dir.string)'")
+            }
         }
 
         if path.exists {
-            guard Input.awaitYesNoInput(message: "File alraady exists, do you want to override it?") else {
-                return false
+            guard Input.awaitYesNoInput(
+                message: "File alraady exists, do you want to override it?") else {
+
+                    return false
             }
         }
         return true
     }
 
-    private func createSubview(name: String) {
-        let file = Path(components: [currentDir.description, "Resources", "Views", "Subviews", name + ".nut"])
-        guard mkdirs(path: file) else {
+    private func createFile(path: Path, content: String) throws {
+        guard try mkdirs(path: path) else {
             return
         }
+        guard (try? path.write(content)) != nil else {
+            throw CLI.Error(message: "Could not write to '\(path.string)', check your permissions")
+        }
+    }
+
+    private func createSubview(name: String) throws {
+        let file = currentDir + "\(viewRoot)Subviews/\(name)\(nutExtension)"
 
         let string = """
         <!-- \(name).html -->
         <h2>\(name)</name>
         """
-
-        try! file.write(string)
+        try createFile(path: file, content: string)
     }
 
-    private func createLayout(name: String) {
-        let file = Path(components: [currentDir.description, "Resources", "Views", "Layouts", name.capitalized + ".nut"])
-        guard mkdirs(path: file) else {
-            return
-        }
+    private func createLayout(name: String) throws {
+        let file = currentDir + "\(viewRoot)Layouts/\(name)\(nutExtension)"
 
         let string = """
             <!-- \(name).html -->
@@ -107,62 +112,32 @@ class CreateCommand: Command {
             </html>
             """
 
-        try! file.write(string)
+        try createFile(path: file, content: string)
     }
 
-    private func createView(name: String) {
-
-        let file = Path(components: [currentDir.description, "Resources", "Views", "Views", name.capitalized + ".nut"])
-        guard mkdirs(path: file) else {
-            return
-        }
+    private func createView(name: String) throws {
+        let file = currentDir + "\(viewRoot)Views/\(name)\(nutExtension)"
 
         let string = "<!-- \(name).html -->\n\n\\Title(\"\(name)\")\n\n<h1>\(name)</h1>\n"
 
-        try! file.write(string)
+        try createFile(path: file, content: string)
     }
 
-    private func createSeeder(name: String) {
-        let seederPath = Path(components: [currentDir.description, "Sources", exeName, "Models", "Database", "Seeders", name.capitalized + "Seeder" + ".swift"])
-
-        guard mkdirs(path: seederPath) else {
-            return
-        }
-
-        let generator = SourceGenerator()
-        generator.imports += ["SquirrelConnector"]
-        var modelStruct = SourceStruct(name: seederPath.lastComponentWithoutExtension, protocols: ["Seeder"])
-
-        let initMethod = SourceInit(variables: [])
-
-        modelStruct.inits.append(initMethod)
-
-        var function = SourceFunction(name: "setUp", throws: true, mutating: true)
-        let end = "#>"
-        function.body.append("models.append(<#" + "Model" + end + ")")
-        modelStruct.functions.append(function)
-        modelStruct.variables.append(SourceVariable(name: "models", type: "[Model]", value: "[]"))
-
-        generator.content.append(modelStruct)
-        try! seederPath.write(generator.generate)
-    }
-
-    private func createModel(name: String) {
-        let modelPath = Path(components: [currentDir.description, "Sources", exeName, "Models", "Database", "Tables", name.capitalized + ".swift"])
-
-        guard mkdirs(path: modelPath) else {
-            return
-        }
+    private func createModel(name: String) throws {
+        let modelPath = currentDir + "Models/\(name).swift"
 
         let generator = SourceGenerator()
         generator.imports += ["Foundation", "SquirrelConnector"]
-        var modelStruct = SourceStruct(name: modelPath.lastComponentWithoutExtension, protocols: ["Model"])
+        var modelStruct = Struct(
+            name: modelPath.lastComponentWithoutExtension,
+            protocols: ["Model"])
+
         modelStruct.variables += [
-            SourceVariable(name: "id", type: "ObjectId?", value: "nil"),
-            SourceVariable(name: "created", value: "Date()"),
-            SourceVariable(name: "modified", value: "Date()")
+            Variable(name: "id", type: "ObjectId?", value: "nil"),
+            Variable(name: "created", value: "Date()"),
+            Variable(name: "modified", value: "Date()")
         ]
         generator.content.append(modelStruct)
-        try! modelPath.write(generator.generate)
+        try createFile(path: modelPath, content: generator.generate)
     }
 }

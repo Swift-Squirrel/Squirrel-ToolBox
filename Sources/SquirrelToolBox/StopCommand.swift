@@ -14,14 +14,17 @@ class StopCommand: Command {
     let shortDescription = "Stop server"
 
     let stopingPid = OptionalParameter()
+    let all = Flag("-a", "--all")
 
     func execute() throws {
-        if let stopingPid = stopingPid.value {
-            try! removePID(pid: stopingPid)
+        if all.value {
+            try removeAllPIDs()
         } else {
-            try! removePID()
+            if let stopingPid = stopingPid.value {
+                try removePID(pid: stopingPid)
+            } else {
+                try removePID()
+            }
         }
-        
     }
 }
-

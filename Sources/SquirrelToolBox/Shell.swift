@@ -12,12 +12,26 @@ import PathKit
 struct ShellResult: CustomStringConvertible {
     let output: String
     let status: Int32
-    var description: String {
-        return String(describing: output) + " " + String(describing: status)
+    let description: String
+    init(status: Int32, output: String) {
+        self.output = output
+        self.status = status
+        self.description = "\(status)\n\(output)"
     }
 }
 
-func shellWithOutput(launchPath: Path, executable: String, arguments: [String] = []) -> ShellResult {
+/// Shell command with stored stderr and setout to variable
+///
+/// - Parameters:
+///   - launchPath: launchpath
+///   - executable: executable name
+///   - arguments: arguments
+/// - Returns: `ShellResult` containing stderr, stdout and status code of shell command
+func shellWithOutput(
+    launchPath: Path,
+    executable: String,
+    arguments: [String] = []) -> ShellResult {
+
     let task = Process()
     task.launchPath = launchPath.absolute().description
     task.arguments = [executable] + arguments
@@ -26,34 +40,27 @@ func shellWithOutput(launchPath: Path, executable: String, arguments: [String] =
     task.standardError = pipe
     task.launch()
     task.waitUntilExit()
-    let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    return ShellResult(output: output, status: task.terminationStatus)
+    let output = String(
+        data: pipe.fileHandleForReading.readDataToEndOfFile(),
+        encoding: .utf8) ?? ""
+
+    return ShellResult(status: task.terminationStatus, output: output)
 }
 
-func shell(launchPath: Path, executable: String, arguments: [String] = []) -> ShellResult {
+/// Shell command with classic stderr and stdout
+///
+/// - Parameters:
+///   - launchPath: launchpath
+///   - executable: executable name
+///   - arguments: arguments
+/// - Returns: status code
+func shell(launchPath: Path, executable: String, arguments: [String] = []) -> Int32 {
     let task = Process()
     task.launchPath = launchPath.absolute().description
     task.arguments = [executable] + arguments
     task.standardOutput = FileHandle.standardOutput
     task.standardError = FileHandle.standardError
     task.launch()
-//    print(task.processIdentifier)
     task.waitUntilExit()
-//    let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    return ShellResult(output: "", status: task.terminationStatus) // TODO
-}
-
-func createTask(launchPath: Path, executable: String, arguments: [String] = [], detached: Bool) -> Process {
-    let task = Process()
-    task.launchPath = launchPath.absolute().description + "/" + executable
-    task.arguments = arguments
-    if detached {
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError = FileHandle.nullDevice
-    } else {
-        task.standardOutput = FileHandle.standardOutput
-        task.standardError = FileHandle.standardOutput
-    }
-
-    return task
+    return task.terminationStatus
 }

@@ -1,6 +1,6 @@
 //
 //  WatchCommand.swift
-//  SquirrelToolBoxPackageDescription
+//  SquirrelToolBox
 //
 //  Created by Filip Klembara on 9/22/17.
 //
@@ -9,11 +9,35 @@ import PathKit
 import SwiftCLI
 import Foundation
 import Signals
+#if os(Linux)
+    import Dispatch
+#endif
 
 class WatchCommand: Command {
     var name: String = "watch"
 
     let shortDescription = "Watch for changes in directory and rerun server"
+
+    private var info: [Path: Date] = [:]
+
+    private var build: UInt64 = 0
+
+    private var shouldRerun: Bool = false
+
+    private static var currenTask: Process? = nil {
+        willSet {
+            if let old = currenTask {
+                old.terminationHandler = nil
+                old.osTerminate()
+            }
+        }
+    }
+
+    private static var currentBuild: Process? = nil {
+        didSet {
+            oldValue?.osTerminate()
+        }
+    }
 
     private func getFiles(from path: Path) -> [Path] {
         let items = path.glob("*")
@@ -39,23 +63,6 @@ class WatchCommand: Command {
         }
     }
 
-    private var info: [Path: Date] = [:]
-
-    private static var currenTask: Process? = nil {
-        willSet {
-            if let old = currenTask {
-                old.terminationHandler = nil
-                old.terminate()
-            }
-        }
-    }
-
-    private static var currentBuild: Process? = nil {
-        didSet {
-            oldValue?.terminate()
-        }
-    }
-
     private func check(path: Path) -> Bool {
         let files = getFiles(from: path)
         var rerun = false
@@ -78,47 +85,46 @@ class WatchCommand: Command {
         }
         return rerun
     }
-    private var build: UInt64 = 0
-    private var shouldRerun: Bool = false
 
-    private func rerun(executable exe: String) {
-        print("building")
+    private func rerun() {
         build += 1
+        print("Building (Build number: \(build)")
         let localBuild = build
-        let buildTask = Process()
+        let buildTask = swift(command: .build, silenced: false)
         WatchCommand.currentBuild = buildTask
-        buildTask.launchPath = "/usr/bin/env"
-        buildTask.arguments = ["swift", "build", "--package-path", Path().absolute().string]
-        buildTask.standardOutput = FileHandle.standardOutput
-        buildTask.standardError = FileHandle.standardError
         buildTask.launch()
         buildTask.waitUntilExit()
-        if buildTask.terminationStatus == 0 {
-            print("\(Date()): build successful")
-            guard localBuild == build else {
+        guard localBuild == build else {
+            return
+        }
+        guard buildTask.terminationStatus == 0 else {
+            print("Build \(localBuild) failed!")
+            return
+        }
+        let runTask = swift(command: .run)
+        runTask.terminationHandler = {
+            [weak self] _ in
+            guard let ss = self else {
                 return
             }
-            let path = Path().absolute() + ".build/debug"
-            let task = createTask(launchPath: path, executable: exe, detached: true)
-            WatchCommand.currenTask?.terminate()
-            task.launch()
-            task.terminationHandler = {
-                [weak self] _ in
-                guard let ss = self else {
-                    return
-                }
-                ss.shouldRerun = true
-            } as ((Process) -> Void)
-            WatchCommand.currenTask = task
-            shouldRerun = false
-            signalTrap()
+            ss.shouldRerun = true
         }
+        runTask.launch()
+        WatchCommand.currenTask = runTask
+        shouldRerun = false
+        signalTrap()
+
     }
 
     private func signalTrap() {
-        Signals.trap(signals: [.int, .abrt, .kill, .term, .quit]) {
+        let signals: [Signals.Signal] = [.hup, .int, .quit, .abrt, .kill, .alrm, .term, .pipe]
+        signals.forEach {
             signal in
-            WatchCommand.currenTask?.terminate()
+            Signals.restore(signal: signal)
+        }
+        Signals.trap(signals: signals) {
+            signal in
+            WatchCommand.currenTask?.osTerminate()
             exit(signal)
         }
     }
@@ -127,9 +133,6 @@ class WatchCommand: Command {
         let package = Path().absolute() + "Package.swift"
         guard package.exists, let lastModif = fileModificationDate(path: package) else {
             throw CLI.Error(message: "Package.swift does not exists")
-        }
-        guard let exeName = getExecutableName() else {
-            throw CLI.Error(message: "Can not get executable")
         }
         info[package] = lastModif
         let path = Path().absolute() + "Sources"
@@ -140,14 +143,15 @@ class WatchCommand: Command {
                     return
                 }
                 if ss.check(path: path) {
-                    ss.rerun(executable: exeName)
+                   ss.rerun()
                 }
             }
             sleep(1)
         }
     }
+
     deinit {
-        WatchCommand.currenTask?.terminate()
-        WatchCommand.currentBuild?.terminate()
+        WatchCommand.currenTask?.osTerminate()
+        WatchCommand.currentBuild?.osTerminate()
     }
 }
