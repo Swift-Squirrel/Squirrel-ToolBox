@@ -216,7 +216,7 @@ if [ "$?" != 0 ]; then
 fi
 verbose "Building successful"
 
-binPath="`pwd`/.build/release/SquirrelToolbox"
+binPath="`pwd`/.build/release/SquirrelToolBox"
 
 verbose "Checking for existence of $binPath (should exists)"
 if [ ! -e "$binPath" ]; then
