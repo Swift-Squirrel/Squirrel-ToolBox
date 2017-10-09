@@ -12,7 +12,7 @@ jobs:
           name: Test install
           command: |
            make install
-           ./install -f
+           ./install -f -v
 
 workflows:
   version: 2
