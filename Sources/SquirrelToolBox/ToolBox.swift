@@ -27,7 +27,7 @@ final class ToolBox {
     private let pids = Pids.pids
     private let pidsDir = Pids.pidsDir
     private let cli: CLI
-    private let version = "0.1.0"
+    private let version = "0.1.1"
 
     init() throws {
         cli = CLI(

@@ -86,7 +86,7 @@ final class CreateCommand: Command {
     }
 
     private func createSubview(name: String) throws {
-        let file = currentDir + "\(viewRoot)Subviews/\(name)\(nutExtension)"
+        let file = currentDir + "\(viewRoot)/Subviews/\(name)\(nutExtension)"
 
         let string = """
         <!-- \(name).html -->
@@ -96,7 +96,7 @@ final class CreateCommand: Command {
     }
 
     private func createLayout(name: String) throws {
-        let file = currentDir + "\(viewRoot)Layouts/\(name)\(nutExtension)"
+        let file = currentDir + "\(viewRoot)/Layouts/\(name)\(nutExtension)"
 
         let string = """
             <!-- \(name).html -->
@@ -116,7 +116,7 @@ final class CreateCommand: Command {
     }
 
     private func createView(name: String) throws {
-        let file = currentDir + "\(viewRoot)Views/\(name)\(nutExtension)"
+        let file = currentDir + "\(viewRoot)/Views/\(name)\(nutExtension)"
 
         let string = "<!-- \(name).html -->\n\n\\Title(\"\(name)\")\n\n<h1>\(name)</h1>\n"
 

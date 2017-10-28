@@ -88,7 +88,7 @@ class WatchCommand: Command {
 
     private func rerun() {
         build += 1
-        print("Building (Build number: \(build)")
+        print("Building (Build number: \(build))")
         let localBuild = build
         let buildTask = swift(command: .build, silenced: false)
         WatchCommand.currentBuild = buildTask
@@ -101,6 +101,7 @@ class WatchCommand: Command {
             print("Build \(localBuild) failed!")
             return
         }
+        print("Build finished: \(build)")
         let runTask = swift(command: .run)
         runTask.terminationHandler = {
             [weak self] _ in
@@ -113,7 +114,6 @@ class WatchCommand: Command {
         WatchCommand.currenTask = runTask
         shouldRerun = false
         signalTrap()
-
     }
 
     private func signalTrap() {
