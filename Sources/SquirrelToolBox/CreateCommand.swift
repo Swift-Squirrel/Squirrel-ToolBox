@@ -90,7 +90,7 @@ final class CreateCommand: Command {
 
         let string = """
         <!-- \(name).html -->
-        <h2>\(name)</name>
+        <h2>\(name)</h2>
         """
         try createFile(path: file, content: string)
     }

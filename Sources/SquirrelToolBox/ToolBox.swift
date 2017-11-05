@@ -40,6 +40,7 @@ final class ToolBox {
             StopCommand(),
             PSCommand(),
             WatchCommand(),
+            NewCommand(),
             CreateCommand()
         ]
         if !pidsDir.exists {
